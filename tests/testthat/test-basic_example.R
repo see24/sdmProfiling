@@ -57,8 +57,11 @@ bm_out <- bm[, 1:9]
 bm_out$sha <- cur_commit$sha
 bm_out$commit <- cur_commit$message
 
-write.csv(bm_out, file = "benchmark_basic_ex.csv", append = TRUE)
+write.table(bm_out, file = "benchmark_basic_ex.csv", append = TRUE, sep = ",",
+            row.names = FALSE, qmethod = "double", col.names = FALSE)
 
 test_that("profile is created", {
   expect_s3_class(profile, "data.frame")
 })
+
+bm_comp <- read.csv("benchmark_basic_ex.csv")

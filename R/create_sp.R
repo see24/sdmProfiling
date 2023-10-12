@@ -201,23 +201,16 @@ create_sp <- function(envStack,
     ### predict for the full grid
     suppressWarnings(sp <- terra::interpolate(terra::rast(envStack[[1]]), sp,
                                                nsim = 1, debug.level = 0))
-    sumEnv <- terra::global(sp, sum)[,1]
+    sumSp <- terra::global(sp, sum)[,1]
   }
 
   ### standardize between 0 and 1
-  sp$sim1 <- (sp$sim1 - min(sp$sim1, na.rm = TRUE)) /
-    (max(sp$sim1, na.rm = TRUE) - min(sp$sim1, na.rm = TRUE))
-  ### standardise variables between 0 and 1
   mnmx <- terra::minmax(sp)
   sp <- (sp - mnmx[1]) /
     (mnmx[2] - mnmx[1])
 
   ##############################################################################
   ### convert to presence-absence
-
-  ### number of cells to occupy
-  ncells <- terra::ncell(envStack)
-  ncells <- ncells * prev
 
   ### top x cells
   q <- terra::global(sp, \(i) quantile(i, 1-prev, na.rm=T))

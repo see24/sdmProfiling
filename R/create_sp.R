@@ -173,15 +173,15 @@ create_sp <- function(envStack,
   ### calculate base prob layer using spFun
   spFun <- as.function(list(str2lang(spFun)))
   formals(spFun) <- alist(x = )
-  baseProb <- calc(envStack, fun = spFun)
+  baseProb <- terra::app(envStack, fun = spFun)
 
   ### create random subset to base kriging on
-  cells <- sample.int(n = ncell(baseProb),
-                      size = round(ncell(baseProb) * propSamp, 0))
+  cells <- sample.int(n = terra::ncell(baseProb),
+                      size = round(terra::ncell(baseProb) * propSamp, 0))
 
   ### convert to data frame
-  baseProb <- data.frame(xyFromCell(baseProb, cells),
-                         sim1 = baseProb@data@values[cells])
+  baseProb <- data.frame(terra::xyFromCell(baseProb, cells),
+                         sim1 = baseProb[cells][,1])
   xy <- expand.grid(1:dim(envStack)[1], 1:dim(envStack)[2])
   names(xy) <- c("x","y")
 
@@ -216,7 +216,7 @@ create_sp <- function(envStack,
   sp$cellID <- 1:nrow(sp)
 
   ### number of cells to occupy
-  ncells <- ncell(envStack)
+  ncells <- terra::ncell(envStack)
   ncells <- ncells * prev
 
   ### top x cells
@@ -228,14 +228,9 @@ create_sp <- function(envStack,
   sp$pa[sp$cellID %in% paCells$cellID] <- 1
 
   ##############################################################################
-  ### convert to raster
-
-  ### grid
-  gridded(sp) = ~x + y
 
   ### convert to raster
-  spRas <- stack(raster(sp["sim1"]),
-                 raster(sp["pa"]))
+  spRas <- c(terra::rast(sp[c("x", "y", "sim1")]), terra::rast(sp[c("x", "y", "pa")]))
 
   ### name and save
   names(spRas) <- c("prob", "presence")

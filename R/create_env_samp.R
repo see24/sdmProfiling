@@ -31,8 +31,8 @@ create_env_samp <- function(envBase,
   sumEnv <- NA
   while(is.na(sumEnv)) {
     ### create random subset to base kriging on
-    subSamp <- envBase[sample.int(n = nrow(envBase),
-                                  size = round(nrow(envBase) * propSamp, 0)), ]
+    subSamp <- terra::spatSample(envBase, size = round(terra::ncell(envBase) * propSamp, 0),
+                                 method = "random", xy = TRUE)
 
     ### create a few other random variable based on the subset of the base variable
     gEnvSamp <- gstat(formula = sim1 ~ 1,   # note that sim1 is the dependent
@@ -46,9 +46,9 @@ create_env_samp <- function(envBase,
                       data = subSamp) # the data is the subset
 
     ### predict for the full grid
-    suppressWarnings(env <- predict(gEnvSamp, newdata = envBase,
+    suppressWarnings(env <- terra::interpolate(envBase, gEnvSamp,
                                     nsim = 1, debug.level = 0))
-    sumEnv <- sum(env$sim1)
+    sumEnv <- terra::global(env, sum)[,1]
   }
 
   return(env)

@@ -22,10 +22,9 @@ create_env <- function(cellDims = c(100, 100),
                        model    = "Sph",
                        psill    = 1.5,
                        rangeFun = "vrangeFun") {
-  ### create structure
-  xy <- expand.grid(1:cellDims[1],
-                    1:cellDims[2])
-  names(xy) <- c("x","y")
+  ### create empty raster
+  xy <- terra::rast(nrows = cellDims[1], ncols = cellDims[2], xmin = 0, ymin = 0,
+              xmax = cellDims[1], ymax = cellDims[2])
 
   ### sumEnv is for error catching when NAs are sometimes predicted
   sumEnv <- NA
@@ -41,10 +40,11 @@ create_env <- function(cellDims = c(100, 100),
                   nmax = 20)
 
     ### predict across whole grid
-    suppressWarnings(env <- predict(gEnv, newdata = xy,
+    suppressWarnings(env <- terra::interpolate(xy, gEnv,
                                     nsim = 1, debug.level = 0))
-    sumEnv <- sum(env$sim1)
+    sumEnv <- terra::global(env, sum)[,1]
   }
+  names(env) <- "sim1"
 
   return(env)
 }

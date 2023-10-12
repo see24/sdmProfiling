@@ -175,15 +175,12 @@ create_sp <- function(envStack,
   formals(spFun) <- alist(x = )
   baseProb <- terra::app(envStack, fun = spFun)
 
-  ### create random subset to base kriging on
-  cells <- sample.int(n = terra::ncell(baseProb),
-                      size = round(terra::ncell(baseProb) * propSamp, 0))
+  names(baseProb) <- "sim1"
 
-  ### convert to data frame
-  baseProb <- data.frame(terra::xyFromCell(baseProb, cells),
-                         sim1 = baseProb[cells][,1])
-  xy <- expand.grid(1:dim(envStack)[1], 1:dim(envStack)[2])
-  names(xy) <- c("x","y")
+  ### create random subset to base kriging on
+  baseProb <- terra::spatSample(baseProb,
+                                size = round(terra::ncell(baseProb) * propSamp, 0),
+                                method = "random", xy = TRUE)
 
   ##############################################################################
   ### create probability of occurrenec surface
@@ -202,35 +199,33 @@ create_sp <- function(envStack,
                 data = baseProb)
 
     ### predict for the full grid
-    suppressWarnings(sp <- predict(sp, newdata = xy, nsim = 1, debug.level = 0))
-    sumSp <- sum(sp$sim1)
+    suppressWarnings(sp <- terra::interpolate(terra::rast(envStack[[1]]), sp,
+                                               nsim = 1, debug.level = 0))
+    sumEnv <- terra::global(sp, sum)[,1]
   }
 
   ### standardize between 0 and 1
   sp$sim1 <- (sp$sim1 - min(sp$sim1, na.rm = TRUE)) /
     (max(sp$sim1, na.rm = TRUE) - min(sp$sim1, na.rm = TRUE))
+  ### standardise variables between 0 and 1
+  mnmx <- terra::minmax(sp)
+  sp <- (sp - mnmx[1]) /
+    (mnmx[2] - mnmx[1])
 
   ##############################################################################
   ### convert to presence-absence
-
-  sp$cellID <- 1:nrow(sp)
 
   ### number of cells to occupy
   ncells <- terra::ncell(envStack)
   ncells <- ncells * prev
 
   ### top x cells
-  paCells <- sp[order(sp$sim1, decreasing = TRUE), ]
-  paCells <- paCells[1:ncells, ]
-
-  ### add pa info to sp
-  sp$pa <- 0
-  sp$pa[sp$cellID %in% paCells$cellID] <- 1
-
+  q <- terra::global(sp, \(i) quantile(i, 1-prev, na.rm=T))
+  pa <- terra::ifel(sp <= q[[1]], 0, 1)
   ##############################################################################
 
   ### convert to raster
-  spRas <- c(terra::rast(sp[c("x", "y", "sim1")]), terra::rast(sp[c("x", "y", "pa")]))
+  spRas <- c(sp, pa)
 
   ### name and save
   names(spRas) <- c("prob", "presence")

@@ -71,9 +71,7 @@
 ################################################################################
 
 #' @export
-#' @importFrom raster extract raster res extent cellFromXY plot as.data.frame
-#' @importFrom randomForest randomForest
-#' @importFrom sp SpatialPoints
+#' @importFrom ranger ranger
 #' @importFrom graphics points
 #' @importFrom stats as.formula
 sdmModelling <- function(samples,
@@ -81,7 +79,6 @@ sdmModelling <- function(samples,
                          modFormula,
                          ntrees,
                          plot = FALSE) {
-  requireNamespace("randomForest")
 
   ### prepare sampled coordinates
   coordsSample <- samples
@@ -91,17 +88,18 @@ sdmModelling <- function(samples,
 
   ### extract environmental values for points
   coords <- terra::vect(coordsSample[, c("x", "y")], geom = c("x", "y"))
-  envValues <- terra::extract(envStack, coords)
+  envValues <- terra::extract(envStack, coords, ID = FALSE)
   # envLayers <- as.data.frame(envStack)
+  # envValues <- model.frame(modFormula, data = cbind(presence = presence, envValues))[,-1]
 
   ### modelling and predict
-  mod <- randomForest(as.formula(modFormula), data = envValues, ntree = ntrees)
+  mod <- ranger(y = presence, x = envValues, num.trees = ntrees, probability = TRUE)
 
   ### generate prediction raster
-  pred <- terra::predict(envStack, mod, type = "prob")["X1"]
-
-  cellsSample <- terra::cellFromXY(pred, coordsSample[, c("x", "y")])
-  pred[cellsSample] <- predict(mod, type = "prob")[, "1"]
+  pred <- terra::predict(envStack, mod,
+                         fun = function(mod, dat){
+                           predict(mod, dat)$predictions
+                         })["X1"]
 
   ### optional plotting function
   if(plot == TRUE){

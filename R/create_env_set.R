@@ -123,15 +123,12 @@ create_env_set <- function(cellDims = c(100, 100),
     ### standardise and convert to raster
     for(i in 1:nPerSet) {
       ### standardise variables between 0 and 1
-      envSet[[i]]$sim1 <- (envSet[[i]]$sim1 - min(envSet[[i]]$sim1)) /
-        (max(envSet[[i]]$sim1) - min(envSet[[i]]$sim1))
-
-      ### grid
-      gridded(envSet[[i]]) = ~x + y
-
-      ### convert to raster
-      envSet[[i]] <- raster(envSet[[i]])
+      mnmx <- terra::minmax(envSet[[i]])
+      envSet[[i]] <- (envSet[[i]] - mnmx[1]) /
+        (mnmx[2] - mnmx[1])
     }
+    # combine in to one multilayer SpatRaster
+    envSet <- terra::rast(envSet)
   }
 
   ### if only one variable then return the base variable
@@ -139,18 +136,12 @@ create_env_set <- function(cellDims = c(100, 100),
     envSet <- envBase
 
     ### standardise variables between 0 and 1
-    envSet$sim1 <- (envSet$sim1 - min(envSet$sim1)) /
-      (max(envSet$sim1) - min(envSet$sim1))
-
-    ### grid
-    gridded(envSet) = ~x + y
-
-    ### convert to raster
-    envSet <- raster(envSet)
+    mnmx <- terra::minmax(envSet)
+    envSet <- (envSet - mnmx[1]) /
+      (mnmx[2] - mnmx[1])
   }
 
-  ### stack and rename
-  envSet <- stack(envSet)
+  ### rename
   names(envSet) <- paste0("var_", 1:nPerSet)
   return(envSet)
 }

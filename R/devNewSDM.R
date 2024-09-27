@@ -37,12 +37,11 @@ devNewSDM <- function(cellState, # either 0 (absence) or 1 (presence)
   ##########################################################################
   ### calculate deviance from original SDM and save to storage
 
-  dev <- abs(predNew@data@values - origSDM@data@values)
-  dev <- dev[!is.na(dev)]
+  dev <- abs(predNew - origSDM)
 
   ##########################################################################
   ### Save to storage
 
-  diff <- sum(as.vector(dev), na.rm = TRUE)
+  diff <- terra::global(dev, sum, na.rm = TRUE)[1,1]
   return(diff)
 }

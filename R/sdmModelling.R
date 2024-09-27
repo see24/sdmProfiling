@@ -71,9 +71,7 @@
 ################################################################################
 
 #' @export
-#' @importFrom raster extract raster res extent cellFromXY plot as.data.frame
-#' @importFrom randomForest randomForest
-#' @importFrom sp SpatialPoints
+#' @importFrom ranger ranger
 #' @importFrom graphics points
 #' @importFrom stats as.formula
 sdmModelling <- function(samples,
@@ -81,7 +79,6 @@ sdmModelling <- function(samples,
                          modFormula,
                          ntrees,
                          plot = FALSE) {
-  requireNamespace("randomForest")
 
   ### prepare sampled coordinates
   coordsSample <- samples
@@ -90,20 +87,19 @@ sdmModelling <- function(samples,
   presence <- as.factor(presence)
 
   ### extract environmental values for points
-  coords <- SpatialPoints(coordsSample[, c("x", "y")])
-  envValues <- as.data.frame(extract(envStack, coords))
-  envLayers <- as.data.frame(envStack)
+  coords <- terra::vect(coordsSample[, c("x", "y")], geom = c("x", "y"))
+  envValues <- terra::extract(envStack, coords, ID = FALSE)
+  # envLayers <- as.data.frame(envStack)
+  # envValues <- model.frame(modFormula, data = cbind(presence = presence, envValues))[,-1]
 
   ### modelling and predict
-  mod <- randomForest(as.formula(modFormula), data = envValues, ntree = ntrees)
+  mod <- ranger(y = presence, x = envValues, num.trees = ntrees, probability = TRUE)
 
   ### generate prediction raster
-  pred <- predict(mod, newdata = envLayers, type = "prob")[, "1"]
-  pred <- raster(ext  = extent(envStack[[1]]),
-                 res  = res(envStack[[1]]),
-                 vals = as.vector(pred))
-  cellsSample <- cellFromXY(pred, coordsSample[, c("x", "y")])
-  pred[cellsSample] <- predict(mod, type = "prob")[, "1"]
+  pred <- terra::predict(envStack, mod,
+                         fun = function(mod, dat){
+                           predict(mod, dat)$predictions
+                         })["X1"]
 
   ### optional plotting function
   if(plot == TRUE){
@@ -113,8 +109,8 @@ sdmModelling <- function(samples,
     plot(predMap,
          colNA = "dark grey",
          main = paste("Samples =", length(presence)))
-    points(coords[presence == 0], pch = 1, cex=1)
-    points(coords[presence == 1], pch = 16, col = "red", cex=1)
+    terra::points(coords[presence == 0], pch = 1, cex=1)
+    terra::points(coords[presence == 1], pch = 1, col = "red", cex=1)
   }
 
   ### return prediction raster

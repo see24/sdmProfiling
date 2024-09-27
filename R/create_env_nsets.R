@@ -124,6 +124,6 @@ create_env_nsets <- function(cellDims = c(100, 100),
   }
 
   ### stack and return
-  allSets <- stack(allSets)
+  allSets <- terra::rast(allSets)
   return(allSets)
 }
